@@ -733,13 +733,15 @@ footer > *{position:relative;z-index:1}
 #biografia .sec-header{position:relative;z-index:1}
 #biografia .bio-grid{position:relative;z-index:1}
 /* ─── BANNER ─── */
-#site-banner{display:none;width:100%;padding:.55rem 1.2rem;text-align:center;font-size:.8rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.15);position:relative;z-index:200}
+#site-banner{display:none;width:100%;padding:.5rem 1.2rem;text-align:center;font-size:.78rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.15);position:fixed;top:0;left:0;right:0;z-index:600}
 #site-banner.red{background:#c0392b;color:#fff}
 #site-banner.green{background:#1a7a3a;color:#fff}
 #site-banner.blue{background:#1a3a7a;color:#fff}
 #site-banner.purple{background:#5a1a7a;color:#fff}
 #site-banner.yellow{background:#7a6a00;color:#ffe}
 #site-banner.active{display:block}
+body.has-banner nav{top:32px}
+body.has-banner .mmenu{top:76px}
 /* ─── LIVE BADGE NAV ─── */
 .nav-live-badge{display:none;background:#c0392b;color:#fff;font-size:.65rem;font-weight:700;padding:.18rem .45rem;border-radius:.15rem;letter-spacing:.08em;margin-left:.4rem;animation:lbpulse 1.4s ease-in-out infinite}
 .nav-live-badge.visible{display:inline-block}
@@ -1633,9 +1635,11 @@ async function loadBanner(){
     el.textContent=d.texto||'';
     if(d.activo===true){
       el.classList.add('active');
+      document.body.classList.add('has-banner');
       console.log('[banner] ACTIVADO con texto:', d.texto);
     } else {
       el.classList.remove('active');
+      document.body.classList.remove('has-banner');
       console.log('[banner] inactivo (activo='+d.activo+')');
     }
   }catch(e){console.error('[banner] excepción:', e.message);}
