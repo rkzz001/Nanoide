@@ -1283,15 +1283,8 @@ async function loadYT(){
 }
 loadYT();
 
-// ADMIN
-const PWD='nanoide2025';
-const getEvs=()=>{try{return JSON.parse(localStorage.getItem('n_evs')||'[]')}catch{return[]}};
-const saveEvs=v=>localStorage.setItem('n_evs',JSON.stringify(v));
-const getPub=()=>localStorage.getItem('n_pub')==='1';
-const setPub=v=>localStorage.setItem('n_pub',v?'1':'0');
-// GALERÍA
-const getGImgs=()=>{try{return JSON.parse(localStorage.getItem('n_gal')||'[]')}catch{return[]}};
-const saveGImgs=v=>localStorage.setItem('n_gal',JSON.stringify(v));
+// ADMIN — backend conectado
+let adminToken = null; // token en memoria, se pierde al cerrar pestaña
 
 function switchTab(t){
   document.querySelectorAll('.atab').forEach(b=>b.classList.remove('active'));
@@ -1300,12 +1293,17 @@ function switchTab(t){
   document.getElementById('tsec-'+t).style.display='';
 }
 
-function renderGal(){
-  const imgs=getGImgs();
+// ─── GALERÍA ───
+async function renderGal(){
   const grid=document.getElementById('ggrid');
   const aglist=document.getElementById('aglist');
   const pcts=['099%','095%','090%','098%','087%','093%','096%','081%','077%'];
   if(!grid)return;
+  let imgs=[];
+  try{
+    const r=await fetch(`${STATS_API}/galeria`);
+    if(r.ok) imgs=await r.json();
+  }catch(e){}
   if(imgs.length===0){
     grid.innerHTML=`<div class="gph" style="grid-column:1/-1;padding:3rem;gap:.8rem"><svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" style="opacity:.2"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg><span style="opacity:.3">// galería vacía — agregá imágenes desde el panel admin</span></div>`;
   }else{
@@ -1314,78 +1312,123 @@ function renderGal(){
         <div class="dbox-corner-tl"></div>
         <div class="dbox-corner-br"></div>
         <span class="gi-pct">${pcts[i%pcts.length]}</span>
-        <img src="${img.url}" alt="${img.cap||''}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" loading="lazy" onerror="this.parentElement.querySelector('.gph-fb').style.display='flex';this.style.display='none'">
+        <img src="${img.url}" alt="${img.caption||''}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0" loading="lazy" onerror="this.parentElement.querySelector('.gph-fb').style.display='flex';this.style.display='none'">
         <div class="gph gph-fb" style="display:none;position:absolute;inset:0"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg><span>ERROR</span></div>
-        <div class="gov"><span class="gcap">${img.cap||'// sin descripción'}</span></div>
+        <div class="gov"><span class="gcap">${img.caption||'// sin descripción'}</span></div>
       </div>`).join('');
   }
   if(!aglist)return;
   aglist.innerHTML=imgs.length===0
     ?`<p style="font-size:.82rem;color:var(--ink3)">// sin imágenes</p>`
-    :imgs.map((img,i)=>`<div style="border:1px solid var(--bg3);padding:.6rem .8rem;display:flex;align-items:center;gap:.8rem">
+    :imgs.map(img=>`<div style="border:1px solid var(--bg3);padding:.6rem .8rem;display:flex;align-items:center;gap:.8rem">
         <div style="width:40px;height:32px;flex-shrink:0;overflow:hidden;background:var(--bg3)"><img src="${img.url}" style="width:100%;height:100%;object-fit:cover"></div>
-        <div style="flex:1;min-width:0"><div style="font-size:.82rem;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${img.url}</div>${img.cap?`<div style="font-size:.78rem;color:var(--ink3)">${img.cap}</div>`:''}</div>
-        <button onclick="delGImg(${i})" style="background:none;border:1px solid var(--ink3);width:24px;height:24px;cursor:pointer;font-size:.88rem;flex-shrink:0">✕</button>
+        <div style="flex:1;min-width:0"><div style="font-size:.82rem;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${img.url}</div>${img.caption?`<div style="font-size:.78rem;color:var(--ink3)">${img.caption}</div>`:''}</div>
+        <button onclick="delGImg(${img.id})" style="background:none;border:1px solid var(--ink3);width:24px;height:24px;cursor:pointer;font-size:.88rem;flex-shrink:0">✕</button>
       </div>`).join('');
 }
 
-function addGImg(){
+async function addGImg(){
   const url=document.getElementById('gurl').value.trim();
   const cap=document.getElementById('gcap').value.trim();
   if(!url){gamsg('⚠ URL obligatoria','var(--red)');return;}
-  const imgs=getGImgs();imgs.push({url,cap});saveGImgs(imgs);
-  document.getElementById('gurl').value='';document.getElementById('gcap').value='';
-  gamsg('✓ imagen agregada','#005500');renderGal();
+  try{
+    const r=await fetch(`${STATS_API}/galeria`,{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':adminToken},body:JSON.stringify({url,caption:cap})});
+    if(!r.ok)throw new Error();
+    document.getElementById('gurl').value='';document.getElementById('gcap').value='';
+    gamsg('✓ imagen agregada','#005500');renderGal();
+  }catch(e){gamsg('⚠ error al guardar','var(--red)');}
 }
-function delGImg(i){const imgs=getGImgs();imgs.splice(i,1);saveGImgs(imgs);renderGal();gamsg('eliminada','var(--ink3)')}
-function clearGal(){if(!confirm('¿Borrar todas las imágenes?'))return;saveGImgs([]);renderGal();gamsg('borrado','var(--ink3)')}
+async function delGImg(id){
+  try{
+    await fetch(`${STATS_API}/galeria/${id}`,{method:'DELETE',headers:{'x-admin-token':adminToken}});
+    renderGal();gamsg('eliminada','var(--ink3)');
+  }catch(e){gamsg('⚠ error','var(--red)');}
+}
+async function clearGal(){
+  if(!confirm('¿Borrar todas las imágenes?'))return;
+  try{
+    const r=await fetch(`${STATS_API}/galeria`);
+    const imgs=await r.json();
+    await Promise.all(imgs.map(img=>fetch(`${STATS_API}/galeria/${img.id}`,{method:'DELETE',headers:{'x-admin-token':adminToken}})));
+    renderGal();gamsg('borrado','var(--ink3)');
+  }catch(e){gamsg('⚠ error','var(--red)');}
+}
 function gamsg(m,c){const el=document.getElementById('gamsg');if(!el)return;el.style.color=c;el.textContent=m;setTimeout(()=>el.textContent='',3500)}
 
-function renderEvs(){
-  const evs=getEvs(),sec=document.getElementById('eventos'),cont=document.getElementById('econt'),ael=document.getElementById('aelist'),tb=document.getElementById('tpbtn');
+// ─── EVENTOS ───
+async function renderEvs(){
+  const sec=document.getElementById('eventos'),cont=document.getElementById('econt'),ael=document.getElementById('aelist');
+  let evs=[];
+  try{
+    const r=await fetch(`${STATS_API}/eventos`);
+    if(r.ok) evs=await r.json();
+  }catch(e){}
   if(evs.length>0){sec.classList.add('vis')}else{sec.classList.remove('vis')}
-  if(tb)tb.textContent='PUBLICAR';
   cont.innerHTML=evs.length===0
     ?`<div class="eempty">// sin eventos programados<br>seguí las redes para enterarte cuando anuncie algo.</div>`
-    :`<div class="egrid">${evs.map((ev,i)=>{const d=ev.date?new Date(ev.date):null;const ds=d?d.toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';return`<div class="ecard"><button class="edel" onclick="delEv(${i})">✕</button>${ds?`<div class="edate">📅 ${ds}</div>`:''}<div class="etitle">${ev.title}</div>${ev.desc?`<div class="edesc">${ev.desc}</div>`:''} ${ev.link?`<a href="${ev.link}" target="_blank" class="elink">→ ver más</a>`:''}</div>`}).join('')}</div>`;
+    :`<div class="egrid">${evs.map(ev=>{const d=ev.fecha?new Date(ev.fecha):null;const ds=d&&!isNaN(d)?d.toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';return`<div class="ecard"><button class="edel" onclick="delEv(${ev.id})">✕</button>${ds?`<div class="edate">📅 ${ds}</div>`:''}<div class="etitle">${ev.titulo}</div>${ev.descripcion?`<div class="edesc">${ev.descripcion}</div>`:''}</div>`}).join('')}</div>`;
   if(ael)ael.innerHTML=evs.length===0
     ?`<p style="font-size:.82rem;color:var(--ink3)">// sin eventos</p>`
-    :evs.map((ev,i)=>`<div style="border:1px solid var(--bg3);padding:.6rem .8rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem"><div><div style="font-size:.9rem;font-weight:700">${ev.title}</div>${ev.date?`<div style="font-size:.78rem;color:var(--ink3)">${new Date(ev.date).toLocaleDateString('es-UY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`:''}</div><button onclick="delEv(${i})" style="background:none;border:1px solid var(--ink3);width:24px;height:24px;cursor:pointer;font-size:.88rem;flex-shrink:0">✕</button></div>`).join('');
+    :evs.map(ev=>`<div style="border:1px solid var(--bg3);padding:.6rem .8rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem"><div><div style="font-size:.9rem;font-weight:700">${ev.titulo}</div>${ev.fecha?`<div style="font-size:.78rem;color:var(--ink3)">${new Date(ev.fecha).toLocaleDateString('es-UY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`:''}</div><button onclick="delEv(${ev.id})" style="background:none;border:1px solid var(--ink3);width:24px;height:24px;cursor:pointer;font-size:.88rem;flex-shrink:0">✕</button></div>`).join('');
 }
 
-function addEv(){
+async function addEv(){
   const t=document.getElementById('et').value.trim(),d=document.getElementById('ed').value,ds=document.getElementById('edesc').value.trim(),l=document.getElementById('elink').value.trim();
   if(!t){amsg('⚠ título obligatorio','var(--red)');return}
-  const evs=getEvs();evs.push({title:t,date:d,desc:ds,link:l});
-  evs.sort((a,b)=>a.date&&b.date?new Date(a.date)-new Date(b.date):0);
-  saveEvs(evs);['et','ed','edesc','elink'].forEach(id=>document.getElementById(id).value='');
-  amsg('✓ evento agregado','#005500');renderEvs();
+  try{
+    const r=await fetch(`${STATS_API}/eventos`,{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':adminToken},body:JSON.stringify({titulo:t,fecha:d||null,descripcion:ds||null})});
+    if(!r.ok)throw new Error();
+    ['et','ed','edesc','elink'].forEach(id=>document.getElementById(id).value='');
+    amsg('✓ evento agregado','#005500');renderEvs();
+  }catch(e){amsg('⚠ error al guardar','var(--red)');}
 }
-function delEv(i){const evs=getEvs();evs.splice(i,1);saveEvs(evs);renderEvs();amsg('eliminado','var(--ink3)')}
-function clearEvs(){if(!confirm('¿Borrar todos?'))return;saveEvs([]);renderEvs();amsg('borrado','var(--ink3)')}
-function togglePub(){const c=getPub();setPub(!c);renderEvs();amsg(!c?'🟢 publicado':'🔒 oculto','#005500')}
+async function delEv(id){
+  try{
+    await fetch(`${STATS_API}/eventos/${id}`,{method:'DELETE',headers:{'x-admin-token':adminToken}});
+    renderEvs();amsg('eliminado','var(--ink3)');
+  }catch(e){amsg('⚠ error','var(--red)');}
+}
+async function clearEvs(){
+  if(!confirm('¿Borrar todos?'))return;
+  try{
+    const r=await fetch(`${STATS_API}/eventos`);
+    const evs=await r.json();
+    await Promise.all(evs.map(ev=>fetch(`${STATS_API}/eventos/${ev.id}`,{method:'DELETE',headers:{'x-admin-token':adminToken}})));
+    renderEvs();amsg('borrado','var(--ink3)');
+  }catch(e){amsg('⚠ error','var(--red)');}
+}
 function amsg(m,c){const el=document.getElementById('amsg');if(!el)return;el.style.color=c;el.textContent=m;setTimeout(()=>el.textContent='',3500)}
+
+// ─── LOGIN ───
 function openLogin(){
   if(document.body.classList.contains('adm')){document.getElementById('apanel').classList.add('open');renderEvs();renderGal();return}
   document.getElementById('lpanel').classList.add('open');
   setTimeout(()=>document.getElementById('lpw').focus(),100);
 }
-function chkLogin(){
+async function chkLogin(){
   const pw=document.getElementById('lpw').value;
-  if(pw===PWD){
-    document.getElementById('lpanel').classList.remove('open');
-    document.getElementById('lpw').value='';document.getElementById('lerr').textContent='';
-    document.body.classList.add('adm');
-    document.getElementById('apanel').classList.add('open');renderEvs();renderGal();
-  }else{
-    document.getElementById('lerr').textContent='// contraseña incorrecta';
-    document.getElementById('lpw').value='';document.getElementById('lpw').focus();
+  if(!pw)return;
+  try{
+    const r=await fetch(`${STATS_API}/auth`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    if(r.ok){
+      const data=await r.json();
+      adminToken=data.token;
+      document.getElementById('lpanel').classList.remove('open');
+      document.getElementById('lpw').value='';document.getElementById('lerr').textContent='';
+      document.body.classList.add('adm');
+      document.getElementById('apanel').classList.add('open');renderEvs();renderGal();
+    }else{
+      document.getElementById('lerr').textContent='// contraseña incorrecta';
+      document.getElementById('lpw').value='';document.getElementById('lpw').focus();
+    }
+  }catch(e){
+    document.getElementById('lerr').textContent='// error de conexión';
   }
 }
 function closeAdmin(){document.getElementById('apanel').classList.remove('open')}
 // ─── STATS EN VIVO ───
 // Reemplazá esta URL con la de tu servidor en Railway/Render
-const STATS_API = 'nanoide-stats-production.up.railway.app';
+const STATS_API = 'https://nanoide-stats-production.up.railway.app';
 
 async function loadStats() {
   if (!STATS_API || STATS_API === 'TU_URL_AQUI') return; // sin backend configurado
