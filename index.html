@@ -1551,15 +1551,15 @@ async function loadStats() {
     }
 
     // Kick
-    if (d.kick?.followers) {
+    if (d.kick != null) {
       setStatEl('s-kick-followers', d.kick.followers);
       setStatEl('s-kick-followers2', d.kick.followers);
     }
 
     // Redes sociales
-    if (d.instagram) setStatEl('s-instagram', d.instagram);
-    if (d.tiktok)    setStatEl('s-tiktok', d.tiktok);
-    if (d.twitter)   setStatEl('s-twitter', d.twitter);
+    if (d.instagram != null) setStatEl('s-instagram', d.instagram);
+    if (d.tiktok    != null) setStatEl('s-tiktok', d.tiktok);
+    if (d.twitter   != null) setStatEl('s-twitter', d.twitter);
 
   } catch(e) {
     // Silencioso — si falla el backend, quedan los números hardcodeados
