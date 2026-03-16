@@ -762,9 +762,9 @@ footer > *{position:relative;z-index:1}
 <!-- NAV -->
 <nav id="mnav">
   <a href="#" class="nav-logo">N<span class="r">A</span>N<span class="g">O</span>I<span class="b">D</span>E</a>
-  <div class="nav-status">
+  <div class="nav-status" id="nav-status" style="display:none">
     <div class="live-dot"></div>
-    ONLINE · kick.com/nanoide
+    EN VIVO · kick.com/nanoide
   </div>
   <ul class="nav-links">
     <li><a href="#estadisticas">_stats</a></li>
@@ -942,7 +942,7 @@ footer > *{position:relative;z-index:1}
   <div class="live-grid">
     <div class="live-player">
       <div class="live-player-wrap scanlines">
-        <div class="live-badge">EN VIVO</div>
+        <div class="live-badge" id="live-badge" style="display:none">EN VIVO</div>
         <iframe src="https://player.kick.com/nanoide" allowfullscreen allow="autoplay; fullscreen" title="Nanoide en Kick"></iframe>
       </div>
       <div class="live-footer">
@@ -957,7 +957,7 @@ footer > *{position:relative;z-index:1}
     <div class="live-chat">
       <div class="chat-head">
         <span class="chat-head-title">// chat · kick.com/nanoide</span>
-        <span class="chat-live">● LIVE</span>
+        <span class="chat-live" id="chat-live" style="display:none">● LIVE</span>
       </div>
       <div class="chat-body">
         <iframe src="https://kick.com/nanoide/chatroom" title="Chat Nanoide Kick" allow="autoplay" scrolling="yes" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
@@ -1561,16 +1561,23 @@ async function loadStats() {
 function setStatEl(id, value) {
   const el = document.getElementById(id);
   if (!el) return;
-  // Preservar el sufijo K/M si ya estaba
   const suffix = el.querySelector('span');
-  // El valor ya viene formateado desde el backend (ej: "129K", "8.2M")
-  // Separamos el número del sufijo
-  const match = String(value).match(/^([\d.]+)([KM]?)$/);
+  // Acepta: "129000", "129K", "129k", "44,1k", "8.2M", "284k", etc.
+  const str = String(value).trim();
+  const match = str.match(/^([\d.,]+)\s*([kKmM]?)$/);
   if (match) {
     el.childNodes[0].textContent = match[1];
-    if (suffix) suffix.textContent = match[2];
+    if (suffix) suffix.textContent = match[2].toUpperCase();
   } else {
-    el.textContent = value;
+    // valor libre (ej: "44,1k" con todo junto) — separar último char si es letra
+    const letMatch = str.match(/^(.+?)([kKmM])$/);
+    if (letMatch) {
+      el.childNodes[0].textContent = letMatch[1];
+      if (suffix) suffix.textContent = letMatch[2].toUpperCase();
+    } else {
+      el.childNodes[0].textContent = str;
+      if (suffix) suffix.textContent = '';
+    }
   }
 }
 
@@ -1601,14 +1608,19 @@ async function loadLiveStatus(){
     const r=await fetch(`${STATS_API}/live-status`);
     if(!r.ok)return;
     const d=await r.json();
-    const badge=document.getElementById('nav-live-badge');
-    if(badge){
-      if(d.live){badge.classList.add('visible');}
-      else{badge.classList.remove('visible');}
-    }
-    // también muestra/oculta badge en la sección live
-    const liveBadge=document.querySelector('.live-badge');
-    if(liveBadge){liveBadge.style.display=d.live?'':'none';}
+    const show=d.live;
+    // badge nav
+    const navBadge=document.getElementById('nav-live-badge');
+    if(navBadge){navBadge.classList.toggle('visible',show);}
+    // status dot nav
+    const navStatus=document.getElementById('nav-status');
+    if(navStatus){navStatus.style.display=show?'flex':'none';}
+    // badge player
+    const liveBadge=document.getElementById('live-badge');
+    if(liveBadge){liveBadge.style.display=show?'':'none';}
+    // ● LIVE chat
+    const chatLive=document.getElementById('chat-live');
+    if(chatLive){chatLive.style.display=show?'':'none';}
   }catch(e){}
 }
 
