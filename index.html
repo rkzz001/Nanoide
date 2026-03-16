@@ -824,7 +824,7 @@ footer > *{position:relative;z-index:1}
     </div>
     <div class="hero-stats-grid">
       <div class="hstat r">
-        <div class="hstat-v">129<span class="c">K</span></div>
+        <div class="hstat-v" id="s-yt-subs">129<span class="c">K</span></div>
         <div class="hstat-l">YouTube subs</div>
       </div>
       <div class="hstat g">
@@ -836,7 +836,7 @@ footer > *{position:relative;z-index:1}
         <div class="hstat-l">Instagram</div>
       </div>
       <div class="hstat k">
-        <div class="hstat-v">43.9<span class="c">K</span></div>
+        <div class="hstat-v" id="s-kick-followers">43.9<span class="c">K</span></div>
         <div class="hstat-l">Kick seguidores</div>
       </div>
     </div>
@@ -884,9 +884,9 @@ footer > *{position:relative;z-index:1}
         <span class="stat-block-url">youtube.com/@nanoide</span>
       </div>
       <div class="stat-grid">
-        <div class="sc r"><div class="dbox-corner"></div><div class="sc-v">129<span>K</span></div><div class="sc-l">Suscriptores</div></div>
-        <div class="sc b"><div class="dbox-corner"></div><div class="sc-v">8.2<span>M</span></div><div class="sc-l">Views totales</div></div>
-        <div class="sc"><div class="dbox-corner"></div><div class="sc-v">113</div><div class="sc-l">Videos subidos</div></div>
+        <div class="sc r"><div class="dbox-corner"></div><div class="sc-v" id="s-yt-subs2">129<span>K</span></div><div class="sc-l">Suscriptores</div></div>
+        <div class="sc b"><div class="dbox-corner"></div><div class="sc-v" id="s-yt-views">8.2<span>M</span></div><div class="sc-l">Views totales</div></div>
+        <div class="sc"><div class="dbox-corner"></div><div class="sc-v" id="s-yt-videos">113</div><div class="sc-l">Videos subidos</div></div>
         <div class="sc g"><div class="dbox-corner"></div><div class="sc-v">~100<span>/d</span></div><div class="sc-l">Nuevos subs/día</div></div>
         <div class="sc full"><div class="dbox-corner"></div><div class="sc-v" style="font-size:1.2rem">10K–25K<span>/día</span></div><div class="sc-l">Visualizaciones diarias</div></div>
       </div>
@@ -900,7 +900,7 @@ footer > *{position:relative;z-index:1}
       <div class="stat-grid">
         <div class="sc r"><div class="dbox-corner"></div><div class="sc-v" style="font-size:1.2rem">250<span>–500</span></div><div class="sc-l">Viewers promedio</div></div>
         <div class="sc b"><div class="dbox-corner"></div><div class="sc-v" style="font-size:1.1rem">1.2K<span>–4.3K</span></div><div class="sc-l">Hs vistas/día activo</div></div>
-        <div class="sc full g"><div class="dbox-corner"></div><div class="sc-v">43.9<span>K</span></div><div class="sc-l">Seguidores en Kick</div></div>
+        <div class="sc full g"><div class="dbox-corner"></div><div class="sc-v" id="s-kick-followers2">43.9<span>K</span></div><div class="sc-l">Seguidores en Kick</div></div>
         <div class="sc full"><div class="dbox-corner"></div><div class="sc-v" style="font-size:.9rem;color:var(--ink2)">IRREGULAR</div><div class="sc-l">Días activos intercalados</div></div>
       </div>
     </div>
@@ -1342,9 +1342,9 @@ function clearGal(){if(!confirm('¿Borrar todas las imágenes?'))return;saveGImg
 function gamsg(m,c){const el=document.getElementById('gamsg');if(!el)return;el.style.color=c;el.textContent=m;setTimeout(()=>el.textContent='',3500)}
 
 function renderEvs(){
-  const evs=getEvs(),pub=getPub(),sec=document.getElementById('eventos'),cont=document.getElementById('econt'),ael=document.getElementById('aelist'),tb=document.getElementById('tpbtn');
-  if(pub&&evs.length>0){sec.style.display=''}else if(document.body.classList.contains('adm')){sec.style.display=''}else{sec.style.display='none'}
-  if(tb)tb.textContent=pub?'🟢 OCULTAR':'PUBLICAR';
+  const evs=getEvs(),sec=document.getElementById('eventos'),cont=document.getElementById('econt'),ael=document.getElementById('aelist'),tb=document.getElementById('tpbtn');
+  if(evs.length>0){sec.classList.add('vis')}else{sec.classList.remove('vis')}
+  if(tb)tb.textContent='PUBLICAR';
   cont.innerHTML=evs.length===0
     ?`<div class="eempty">// sin eventos programados<br>seguí las redes para enterarte cuando anuncie algo.</div>`
     :`<div class="egrid">${evs.map((ev,i)=>{const d=ev.date?new Date(ev.date):null;const ds=d?d.toLocaleDateString('es-UY',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';return`<div class="ecard"><button class="edel" onclick="delEv(${i})">✕</button>${ds?`<div class="edate">📅 ${ds}</div>`:''}<div class="etitle">${ev.title}</div>${ev.desc?`<div class="edesc">${ev.desc}</div>`:''} ${ev.link?`<a href="${ev.link}" target="_blank" class="elink">→ ver más</a>`:''}</div>`}).join('')}</div>`;
@@ -1383,8 +1383,60 @@ function chkLogin(){
   }
 }
 function closeAdmin(){document.getElementById('apanel').classList.remove('open')}
+// ─── STATS EN VIVO ───
+// Reemplazá esta URL con la de tu servidor en Railway/Render
+const STATS_API = 'nanoide-stats-production.up.railway.app';
+
+async function loadStats() {
+  if (!STATS_API || STATS_API === 'TU_URL_AQUI') return; // sin backend configurado
+
+  try {
+    const res = await fetch(`${STATS_API}/stats`, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) return;
+    const d = await res.json();
+
+    // YouTube
+    if (d.youtube) {
+      const { subscribers, views, videos } = d.youtube;
+      if (subscribers) {
+        setStatEl('s-yt-subs', subscribers);
+        setStatEl('s-yt-subs2', subscribers);
+      }
+      if (views)  setStatEl('s-yt-views', views);
+      if (videos) setStatEl('s-yt-videos', videos);
+    }
+
+    // Kick
+    if (d.kick?.followers) {
+      setStatEl('s-kick-followers', d.kick.followers);
+      setStatEl('s-kick-followers2', d.kick.followers);
+    }
+
+  } catch(e) {
+    // Silencioso — si falla el backend, quedan los números hardcodeados
+  }
+}
+
+function setStatEl(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // Preservar el sufijo K/M si ya estaba
+  const suffix = el.querySelector('span');
+  // El valor ya viene formateado desde el backend (ej: "129K", "8.2M")
+  // Separamos el número del sufijo
+  const match = String(value).match(/^([\d.]+)([KM]?)$/);
+  if (match) {
+    el.childNodes[0].textContent = match[1];
+    if (suffix) suffix.textContent = match[2];
+  } else {
+    el.textContent = value;
+  }
+}
+
+loadStats();
 renderEvs();
 renderGal();
+
 </script>
 </body>
 </html>
