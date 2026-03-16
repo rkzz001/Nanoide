@@ -1628,7 +1628,7 @@ async function loadBanner(){
     el.className='';
     el.classList.add(d.color||'red');
     el.textContent=d.texto||'';
-    if(d.activo===true && d.texto){
+    if(d.activo===true){
       el.classList.add('active');
     } else {
       el.classList.remove('active');
