@@ -84,10 +84,13 @@ nav{
 }
 .nav-links a:hover{background:var(--ink);color:var(--bg)}
 .nav-cta{
-  background:var(--red)!important;color:#fff!important;
-  border-left:1px solid var(--red)!important;
+  background:transparent;color:var(--ink2)!important;
+  border-left:1px solid var(--bg3)!important;
+  transition:background .2s,color .2s;
 }
-.nav-cta:hover{background:#b00!important}
+.nav-cta:hover{background:var(--bg2)!important}
+.nav-cta.live{background:var(--red)!important;color:#fff!important;border-left-color:var(--red)!important}
+.nav-cta.live:hover{background:#b00!important}
 .hamburger{display:none;flex-direction:column;gap:4px;cursor:pointer;padding:4px;background:none;border:none}
 .hamburger span{width:22px;height:1px;background:var(--ink)}
 .mmenu{
@@ -853,11 +856,11 @@ footer > *{position:relative;z-index:1}
         <div class="hstat-l">YouTube subs</div>
       </div>
       <div class="hstat g">
-        <div class="hstat-v">284<span class="c">K</span></div>
+        <div class="hstat-v" id="s-tiktok">284<span class="c">K</span></div>
         <div class="hstat-l">TikTok</div>
       </div>
       <div class="hstat b">
-        <div class="hstat-v">126<span class="c">K</span></div>
+        <div class="hstat-v" id="s-instagram">126<span class="c">K</span></div>
         <div class="hstat-l">Instagram</div>
       </div>
       <div class="hstat k">
@@ -1553,6 +1556,11 @@ async function loadStats() {
       setStatEl('s-kick-followers2', d.kick.followers);
     }
 
+    // Redes sociales
+    if (d.instagram) setStatEl('s-instagram', d.instagram);
+    if (d.tiktok)    setStatEl('s-tiktok', d.tiktok);
+    if (d.twitter)   setStatEl('s-twitter', d.twitter);
+
   } catch(e) {
     // Silencioso — si falla el backend, quedan los números hardcodeados
   }
@@ -1562,20 +1570,39 @@ function setStatEl(id, value) {
   const el = document.getElementById(id);
   if (!el) return;
   const suffix = el.querySelector('span');
-  // Acepta: "129000", "129K", "129k", "44,1k", "8.2M", "284k", etc.
-  const str = String(value).trim();
-  const match = str.match(/^([\d.,]+)\s*([kKmM]?)$/);
-  if (match) {
-    el.childNodes[0].textContent = match[1];
-    if (suffix) suffix.textContent = match[2].toUpperCase();
+  const raw = String(value).trim();
+
+  // Si viene con sufijo manual (ej: "44,1k", "284K", "8.2M", "126k")
+  const manualMatch = raw.match(/^([\d.,]+)\s*([kKmMbB]?)$/);
+  if (manualMatch) {
+    el.childNodes[0].textContent = manualMatch[1];
+    if (suffix) suffix.textContent = manualMatch[2].toUpperCase();
+    return;
+  }
+  // Puede venir todo junto sin espacio: "44,1k"
+  const joinedMatch = raw.match(/^([\d.,]+)([kKmMbB])$/);
+  if (joinedMatch) {
+    el.childNodes[0].textContent = joinedMatch[1];
+    if (suffix) suffix.textContent = joinedMatch[2].toUpperCase();
+    return;
+  }
+  // Número puro del backend — formatear automáticamente
+  const n = parseFloat(raw.replace(/,/g, '.'));
+  if (!isNaN(n)) {
+    let num, suf;
+    if (n >= 1000000)      { num = (n/1000000).toFixed(1).replace(/\.0$/,''); suf = 'M'; }
+    else if (n >= 1000)    { num = (n/1000).toFixed(1).replace(/\.0$/,'');    suf = 'K'; }
+    else                   { num = String(Math.round(n));                      suf = '';  }
+    el.childNodes[0].textContent = num;
+    if (suffix) suffix.textContent = suf;
   } else {
-    // valor libre (ej: "44,1k" con todo junto) — separar último char si es letra
-    const letMatch = str.match(/^(.+?)([kKmM])$/);
+    // fallback: texto libre, separar última letra si es sufijo
+    const letMatch = raw.match(/^(.+?)([kKmM])$/);
     if (letMatch) {
       el.childNodes[0].textContent = letMatch[1];
       if (suffix) suffix.textContent = letMatch[2].toUpperCase();
     } else {
-      el.childNodes[0].textContent = str;
+      el.childNodes[0].textContent = raw;
       if (suffix) suffix.textContent = '';
     }
   }
@@ -1621,6 +1648,9 @@ async function loadLiveStatus(){
     // ● LIVE chat
     const chatLive=document.getElementById('chat-live');
     if(chatLive){chatLive.style.display=show?'':'none';}
+    // botón EN VIVO del nav
+    const navCta=document.getElementById('nav-cta-live');
+    if(navCta){navCta.classList.toggle('live',show);}
   }catch(e){}
 }
 
