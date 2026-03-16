@@ -637,12 +637,12 @@ footer{
 }
 .ltitle{font-size:1.1rem;font-weight:700;letter-spacing:-.01em;margin-bottom:.3rem}
 .lsub{font-size:.78rem;color:var(--ink3);margin-bottom:1.5rem;letter-spacing:.05em}
-.lbox input{
+.lbox input:not([type=checkbox]){
   width:100%;background:var(--bg2);border:1px solid var(--bg3);
   padding:.6rem .8rem;color:var(--ink);font-family:var(--mono);
   font-size:.92rem;outline:none;margin-bottom:.8rem;border-radius:0;
 }
-.lbox input:focus{border-color:var(--ink)}
+.lbox input:not([type=checkbox]):focus{border-color:var(--ink)}
 .lerr{font-size:.82rem;color:var(--red);min-height:1rem;margin-bottom:.5rem}
 .abox{
   background:var(--bg);border:1px solid var(--ink);
@@ -660,7 +660,8 @@ footer{
 .aclose:hover{background:var(--ink);color:var(--bg)}
 .afg{margin-bottom:.8rem}
 .afg label{display:block;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:.3rem}
-.afg input,.afg textarea{
+.afg input[type=checkbox]{width:auto!important;padding:0!important;border:none!important;background:none!important;accent-color:#c0392b;cursor:pointer}
+.afg input:not([type=checkbox]),.afg textarea{
   width:100%;background:var(--bg2);border:1px solid var(--bg3);
   padding:.5rem .7rem;color:var(--ink);font-family:var(--mono);
   font-size:.9rem;outline:none;border-radius:0;-webkit-appearance:none;
@@ -1232,9 +1233,9 @@ footer > *{position:relative;z-index:1}
         </select>
       </div>
       <div class="afg" style="justify-content:center;padding-top:1.4rem">
-        <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
-          <input type="checkbox" id="ban-activo" style="width:1.1rem;height:1.1rem">
-          <span>Banner activo</span>
+        <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;user-select:none">
+          <input type="checkbox" id="ban-activo" style="width:1.2rem;height:1.2rem;accent-color:#c0392b;cursor:pointer;flex-shrink:0">
+          <span style="font-size:.85rem;letter-spacing:.05em">BANNER ACTIVO</span>
         </label>
       </div>
     </div>
@@ -1246,7 +1247,7 @@ footer > *{position:relative;z-index:1}
     <div class="asub">TOGGLE EN VIVO</div>
     <div style="display:flex;align-items:center;gap:1rem;margin:.8rem 0">
       <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
-        <input type="checkbox" id="live-toggle" style="width:1.3rem;height:1.3rem">
+        <input type="checkbox" id="live-toggle" style="width:1.2rem;height:1.2rem;accent-color:#c0392b;cursor:pointer;flex-shrink:0">
         <span style="font-size:.9rem;letter-spacing:.05em">Mostrar badge <strong>EN VIVO</strong> en el nav</span>
       </label>
     </div>
@@ -1621,14 +1622,18 @@ async function loadBanner(){
     const r=await fetch(`${STATS_API}/banner`);
     if(!r.ok)return;
     const d=await r.json();
+    console.log('[banner]', d);
     const el=document.getElementById('site-banner');
     if(!el)return;
-    // limpiar clases de color anteriores, mantener solo la nueva
     el.className='';
     el.classList.add(d.color||'red');
     el.textContent=d.texto||'';
-    if(d.activo&&d.texto){el.classList.add('active');}
-  }catch(e){}
+    if(d.activo===true && d.texto){
+      el.classList.add('active');
+    } else {
+      el.classList.remove('active');
+    }
+  }catch(e){console.error('[banner error]',e);}
 }
 
 // ─── LIVE STATUS ───
@@ -1679,6 +1684,7 @@ async function saveBanner(){
   const texto=document.getElementById('ban-texto').value.trim();
   const color=document.getElementById('ban-color').value;
   const activo=document.getElementById('ban-activo').checked;
+  banmsg(`Guardando... activo=${activo}, texto="${texto}"`, 'var(--ink3)');
   try{
     const r=await fetch(`${STATS_API}/stats-manual`,{
       method:'POST',
@@ -1686,10 +1692,13 @@ async function saveBanner(){
       body:JSON.stringify({banner_texto:texto,banner_color:color,banner_activo:String(activo)})
     });
     if(r.ok){
-      banmsg('✓ Banner guardado','#005500');
-      loadBanner();
-    }else{banmsg('⚠ error','var(--red)');}
-  }catch(e){banmsg('⚠ error','var(--red)');}
+      banmsg(`✓ Guardado (activo=${activo})`,activo?'#005500':'var(--ink3)');
+      await loadBanner();
+    }else{
+      const err=await r.text();
+      banmsg('⚠ error: '+r.status+' '+err,'var(--red)');
+    }
+  }catch(e){banmsg('⚠ excepción: '+e.message,'var(--red)');}
 }
 
 async function saveLiveToggle(){
