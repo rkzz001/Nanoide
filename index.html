@@ -1551,16 +1551,19 @@ async function loadStats() {
       if (videos) setStatEl('s-yt-videos', videos);
     }
 
+    // helper: valor real = no nulo, no vacío, no '0'
+    const isReal = v => v != null && String(v).trim() !== '0' && String(v).trim() !== '';
+
     // Kick
-    if (d.kick != null) {
+    if (d.kick != null && isReal(d.kick.followers)) {
       setStatEl('s-kick-followers', d.kick.followers);
       setStatEl('s-kick-followers2', d.kick.followers);
     }
 
-    // Redes sociales
-    if (d.instagram != null) setStatEl('s-instagram', d.instagram);
-    if (d.tiktok    != null) setStatEl('s-tiktok', d.tiktok);
-    if (d.twitter   != null) setStatEl('s-twitter', d.twitter);
+    // Redes sociales — solo actualizar si el backend tiene un valor real
+    if (isReal(d.instagram)) setStatEl('s-instagram', d.instagram);
+    if (isReal(d.tiktok))    setStatEl('s-tiktok', d.tiktok);
+    if (isReal(d.twitter))   setStatEl('s-twitter', d.twitter);
 
   } catch(e) {
     // Silencioso — si falla el backend, quedan los números hardcodeados
@@ -1620,20 +1623,22 @@ renderMedia();
 async function loadBanner(){
   try{
     const r=await fetch(`${STATS_API}/banner`);
-    if(!r.ok)return;
+    if(!r.ok){ console.warn('[banner] fetch failed:', r.status); return; }
     const d=await r.json();
-    console.log('[banner]', d);
+    console.log('[banner] respuesta del servidor:', JSON.stringify(d));
     const el=document.getElementById('site-banner');
-    if(!el)return;
+    if(!el){ console.warn('[banner] elemento site-banner no encontrado'); return; }
     el.className='';
     el.classList.add(d.color||'red');
     el.textContent=d.texto||'';
     if(d.activo===true){
       el.classList.add('active');
+      console.log('[banner] ACTIVADO con texto:', d.texto);
     } else {
       el.classList.remove('active');
+      console.log('[banner] inactivo (activo='+d.activo+')');
     }
-  }catch(e){console.error('[banner error]',e);}
+  }catch(e){console.error('[banner] excepción:', e.message);}
 }
 
 // ─── LIVE STATUS ───
