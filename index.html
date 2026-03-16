@@ -1258,15 +1258,15 @@ footer > *{position:relative;z-index:1}
   <div id="tsec-stats" class="tsec" style="display:none">
     <div class="asub">ACTUALIZAR ESTADÍSTICAS MANUALMENTE</div>
     <div class="arow">
-      <div class="afg"><label>// YouTube subs</label><input type="number" id="st-yt-subs" placeholder="0"></div>
-      <div class="afg"><label>// YouTube views</label><input type="number" id="st-yt-views" placeholder="0"></div>
-      <div class="afg"><label>// YouTube videos</label><input type="number" id="st-yt-videos" placeholder="0"></div>
+      <div class="afg"><label>// YouTube subs</label><input type="text" id="st-yt-subs" placeholder="ej: 129000 ó 129K"></div>
+      <div class="afg"><label>// YouTube views</label><input type="text" id="st-yt-views" placeholder="ej: 5000000 ó 5M"></div>
+      <div class="afg"><label>// YouTube videos</label><input type="text" id="st-yt-videos" placeholder="ej: 120"></div>
     </div>
     <div class="arow">
-      <div class="afg"><label>// Kick seguidores</label><input type="number" id="st-kick" placeholder="0"></div>
-      <div class="afg"><label>// Instagram</label><input type="number" id="st-ig" placeholder="0"></div>
-      <div class="afg"><label>// Twitter/X</label><input type="number" id="st-tw" placeholder="0"></div>
-      <div class="afg"><label>// TikTok</label><input type="number" id="st-tk" placeholder="0"></div>
+      <div class="afg"><label>// Kick seguidores</label><input type="text" id="st-kick" placeholder="ej: 44K ó 44100"></div>
+      <div class="afg"><label>// Instagram</label><input type="text" id="st-ig" placeholder="ej: 126K ó 126000"></div>
+      <div class="afg"><label>// Twitter/X</label><input type="text" id="st-tw" placeholder="ej: 50K"></div>
+      <div class="afg"><label>// TikTok</label><input type="text" id="st-tk" placeholder="ej: 284K"></div>
     </div>
     <button class="btn-p" onclick="saveStats()">💾 GUARDAR STATS</button>
     <div class="amsg" id="statsmsg"></div>
@@ -1623,9 +1623,11 @@ async function loadBanner(){
     const d=await r.json();
     const el=document.getElementById('site-banner');
     if(!el)return;
-    el.className=d.color||'red';
+    // limpiar clases de color anteriores, mantener solo la nueva
+    el.className='';
+    el.classList.add(d.color||'red');
     el.textContent=d.texto||'';
-    if(d.activo&&d.texto){el.classList.add('active');}else{el.classList.remove('active');}
+    if(d.activo&&d.texto){el.classList.add('active');}
   }catch(e){}
 }
 
