@@ -1159,9 +1159,10 @@ body.has-banner .mmenu{top:76px}
 <!-- LOGIN -->
 <div id="lpanel"><div class="lbox">
   <button class="aclose" onclick="document.getElementById('lpanel').classList.remove('open')" title="Cerrar">✕</button>
-  <div class="ltitle">// ADMIN</div>
+  <div class="ltitle">// ACCESO</div>
   <div class="lsub">PANEL DE GESTIÓN</div>
-  <input type="password" id="lpw" placeholder="contraseña" onkeydown="if(event.key==='Enter')chkLogin()">
+  <input type="text" id="lusr" placeholder="usuario" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('lpw').focus()" style="margin-bottom:.5rem">
+  <input type="password" id="lpw" placeholder="contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')chkLogin()">
   <div class="lerr" id="lerr"></div>
   <button class="btn-p" style="width:100%;justify-content:center" onclick="chkLogin()">ENTRAR →</button>
 </div></div>
@@ -1169,13 +1170,14 @@ body.has-banner .mmenu{top:76px}
 <!-- ADMIN PANEL -->
 <div id="apanel"><div class="abox">
   <button class="aclose" onclick="closeAdmin()">✕</button>
-  <div class="atitle">// ADMIN</div>
+  <div class="atitle">// PANEL <span id="atitle-rol" style="font-size:.7rem;color:var(--ink3);font-weight:400;letter-spacing:.1em"></span></div>
   <!-- Tabs -->
-  <div class="atabs">
+  <div class="atabs" id="atabs-row">
     <button class="atab active" id="tab-evs" onclick="switchTab('evs')">📅 EVENTOS</button>
     <button class="atab" id="tab-med" onclick="switchTab('med')">🎬 MULTIMEDIA</button>
-    <button class="atab" id="tab-ban" onclick="switchTab('ban')">📢 BANNER</button>
-    <button class="atab" id="tab-stats" onclick="switchTab('stats')">📊 STATS</button>
+    <button class="atab admin-only" id="tab-ban" onclick="switchTab('ban')">📢 BANNER</button>
+    <button class="atab admin-only" id="tab-stats" onclick="switchTab('stats')">📊 STATS</button>
+    <button class="atab admin-only" id="tab-usr" onclick="switchTab('usr')">👥 USUARIOS</button>
   </div>
 
   <!-- TAB: EVENTOS -->
@@ -1274,6 +1276,25 @@ body.has-banner .mmenu{top:76px}
     <button class="btn-p" onclick="saveStats()">💾 GUARDAR STATS</button>
     <div class="amsg" id="statsmsg"></div>
     <div style="font-size:.72rem;color:var(--ink3);margin-top:.8rem" id="stats-updated"></div>
+  </div>
+
+  <!-- TAB: USUARIOS -->
+  <div id="tsec-usr" class="tsec" style="display:none">
+    <div class="asub">GESTIÓN DE USUARIOS CON ACCESO AL PANEL</div>
+    <div class="arow">
+      <div class="afg"><label>// usuario</label><input type="text" id="nu-user" placeholder="ej: mod_juancho" autocomplete="off"></div>
+      <div class="afg"><label>// contraseña</label><input type="password" id="nu-pw" placeholder="contraseña segura" autocomplete="off"></div>
+      <div class="afg">
+        <label>// rol</label>
+        <select id="nu-rol" style="background:var(--bg2);color:var(--ink);border:1px solid var(--bg3);padding:.5rem;font-family:inherit">
+          <option value="editor">🎬 Editor (solo multimedia)</option>
+          <option value="admin">⚙️ Admin (acceso total)</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-p" onclick="addUser()">+ CREAR USUARIO</button>
+    <div class="amsg" id="usrmsg"></div>
+    <div id="usrlist" style="margin-top:1rem"></div>
   </div>
 
 </div></div>
@@ -1386,6 +1407,7 @@ loadYT();
 
 // ADMIN — backend conectado
 let adminToken = null; // token en memoria, se pierde al cerrar pestaña
+let adminRol = null;   // 'admin' | 'editor'
 
 function switchTab(t){
   document.querySelectorAll('.atab').forEach(b=>b.classList.remove('active'));
@@ -1395,6 +1417,24 @@ function switchTab(t){
   if(t==='stats')loadStatsAdmin();
   if(t==='ban')loadBannerAdmin();
   if(t==='med')renderMedia();
+  if(t==='usr')renderUsers();
+}
+
+function applyRol(rol){
+  adminRol=rol;
+  // Ocultar tabs admin-only si el usuario es editor
+  document.querySelectorAll('.admin-only').forEach(el=>{
+    el.style.display = rol==='admin' ? '' : 'none';
+  });
+  // Mostrar label de rol en el título
+  const rolEl=document.getElementById('atitle-rol');
+  if(rolEl) rolEl.textContent = rol==='admin' ? '[ admin ]' : '[ editor ]';
+  // Si es editor, la primera tab activa es multimedia
+  if(rol==='editor'){
+    switchTab('med');
+  } else {
+    switchTab('evs');
+  }
 }
 
 // ─── GALERÍA ───
@@ -1505,31 +1545,91 @@ function amsg(m,c){const el=document.getElementById('amsg');if(!el)return;el.sty
 
 // ─── LOGIN ───
 function openLogin(){
-  if(document.body.classList.contains('adm')){document.getElementById('apanel').classList.add('open');renderEvs();renderMedia();return}
+  if(document.body.classList.contains('adm')){document.getElementById('apanel').classList.add('open');return}
   document.getElementById('lpanel').classList.add('open');
-  setTimeout(()=>document.getElementById('lpw').focus(),100);
+  setTimeout(()=>document.getElementById('lusr').focus(),100);
 }
 async function chkLogin(){
+  const usr=document.getElementById('lusr').value.trim();
   const pw=document.getElementById('lpw').value;
   if(!pw)return;
   try{
-    const r=await fetch(`${STATS_API}/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    const body = usr ? {username:usr,password:pw} : {password:pw};
+    const r=await fetch(`${STATS_API}/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(r.ok){
       const data=await r.json();
       adminToken=data.token;
       document.getElementById('lpanel').classList.remove('open');
-      document.getElementById('lpw').value='';document.getElementById('lerr').textContent='';
+      document.getElementById('lusr').value='';
+      document.getElementById('lpw').value='';
+      document.getElementById('lerr').textContent='';
       document.body.classList.add('adm');
-      document.getElementById('apanel').classList.add('open');renderEvs();renderMedia();
+      document.getElementById('apanel').classList.add('open');
+      applyRol(data.rol||'admin');
     }else{
-      document.getElementById('lerr').textContent='// contraseña incorrecta';
-      document.getElementById('lpw').value='';document.getElementById('lpw').focus();
+      document.getElementById('lerr').textContent='// usuario o contraseña incorrectos';
+      document.getElementById('lpw').value='';
+      document.getElementById('lusr').focus();
     }
   }catch(e){
     document.getElementById('lerr').textContent='// error de conexión';
   }
 }
 function closeAdmin(){document.getElementById('apanel').classList.remove('open')}
+
+// ─── USUARIOS ───
+function usrmsg(m,c){const el=document.getElementById('usrmsg');if(!el)return;el.style.color=c;el.textContent=m;setTimeout(()=>el.textContent='',3500)}
+
+async function renderUsers(){
+  if(adminRol!=='admin')return;
+  const list=document.getElementById('usrlist');
+  if(!list)return;
+  list.innerHTML='<div style="color:var(--ink3);font-size:.8rem">cargando...</div>';
+  try{
+    const r=await fetch(`${STATS_API}/usuarios`,{headers:{'x-admin-token':adminToken}});
+    if(!r.ok){list.innerHTML='<div style="color:var(--red)">// error al cargar usuarios</div>';return;}
+    const users=await r.json();
+    if(!users.length){list.innerHTML='<div style="color:var(--ink3);font-size:.8rem">// sin usuarios creados aún</div>';return;}
+    list.innerHTML=users.map(u=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;background:var(--bg2);border:1px solid var(--bg3);margin-bottom:.4rem">
+        <div>
+          <span style="color:var(--ink);font-size:.85rem;letter-spacing:.05em">${u.username}</span>
+          <span style="margin-left:.8rem;font-size:.72rem;color:${u.rol==='admin'?'#c0392b':'var(--ink3)'};border:1px solid currentColor;padding:.1rem .4rem">${u.rol.toUpperCase()}</span>
+        </div>
+        <button onclick="delUser(${u.id},'${u.username}')" style="background:none;border:1px solid var(--red);color:var(--red);cursor:pointer;padding:.2rem .6rem;font-family:inherit;font-size:.75rem">✕ BORRAR</button>
+      </div>`).join('');
+  }catch(e){list.innerHTML='<div style="color:var(--red)">// error de conexión</div>';}
+}
+
+async function addUser(){
+  if(adminRol!=='admin')return;
+  const username=document.getElementById('nu-user').value.trim();
+  const password=document.getElementById('nu-pw').value;
+  const rol=document.getElementById('nu-rol').value;
+  if(!username||!password){usrmsg('// completá usuario y contraseña','var(--red)');return;}
+  try{
+    const r=await fetch(`${STATS_API}/usuarios`,{method:'POST',headers:{'Content-Type':'application/json','x-admin-token':adminToken},body:JSON.stringify({username,password,rol})});
+    if(r.ok){
+      document.getElementById('nu-user').value='';
+      document.getElementById('nu-pw').value='';
+      usrmsg('✓ usuario creado','#005500');
+      renderUsers();
+    }else{
+      const d=await r.json();
+      usrmsg('// '+(d.error||'error'),'var(--red)');
+    }
+  }catch(e){usrmsg('// error de conexión','var(--red)');}
+}
+
+async function delUser(id,username){
+  if(!confirm(`¿Borrar usuario "${username}"?`))return;
+  try{
+    await fetch(`${STATS_API}/usuarios/${id}`,{method:'DELETE',headers:{'x-admin-token':adminToken}});
+    usrmsg('// usuario eliminado','var(--ink3)');
+    renderUsers();
+  }catch(e){usrmsg('// error de conexión','var(--red)');}
+}
+
 // ─── STATS EN VIVO ───
 // Reemplazá esta URL con la de tu servidor en Railway/Render
 const STATS_API = 'https://nanoide-stats-production.up.railway.app';
